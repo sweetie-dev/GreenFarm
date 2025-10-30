@@ -27,6 +27,9 @@ lib-cov
 coverage
 *.lcov
 
+# Collections directory by SimplDB
+collections
+
 # nyc test coverage
 .nyc_output
 
