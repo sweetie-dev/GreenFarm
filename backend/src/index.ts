@@ -1,18 +1,25 @@
-import express from 'express';
+import express, { Application, RequestHandler } from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const app: express.Application = express();
-const port: number = 3000;
+const app: Application = express();
+const port = 3000;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 const routesPath = path.join(__dirname, 'routes');
+
 const routeFiles = fs.readdirSync(routesPath).filter(file => {
-  if (process.env.NODE_ENV === 'production') return file.endsWith('.js');
-  return file.endsWith('.ts');
+  return process.env.NODE_ENV === 'production'
+    ? file.endsWith('.js')
+    : file.endsWith('.ts');
 });
+
+interface Route {
+  endpoint: string;
+  method: 'get' | 'post' | 'put' | 'delete';
+  run: RequestHandler;
+}
 
 async function loadRoutes() {
   for (const file of routeFiles) {
@@ -26,27 +33,24 @@ async function loadRoutes() {
       continue;
     }
 
-    const route = (mod && (mod.default ?? mod)) as any;
+    const route: Route | undefined = mod?.default ?? mod;
 
     if (!route || typeof route.endpoint !== 'string' || typeof route.method !== 'string' || typeof route.run !== 'function') {
       console.warn(`Ignorando arquivo de rota inválido: ${file}`);
       continue;
     }
 
-    (app as any)[route.method](route.endpoint, route.run)
+    app[route.method](route.endpoint, route.run);
+    console.log(`Rota carregada: [${route.method.toUpperCase()}] ${route.endpoint}`);
   }
 }
 
-/*
-app["get"]('/', (_: express.Request, res: express.Response) => {
-  res.send('A EcoCredit API está no ar!');
-});
-*/
+app.use(express.json());
 
 loadRoutes()
   .then(() => {
     app.listen(port, () => {
-      console.log(`EcoCredit API rodando na porta ${port}`);
+      console.log(`GreenFarm API rodando na porta ${port}`);
     });
   })
   .catch(err => {
