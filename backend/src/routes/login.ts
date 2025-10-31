@@ -1,43 +1,72 @@
-import express, { Request, Response } from 'express';
-import db from '../database/dbIndex.js';
-import bcrypt from 'bcryptjs';
+import type Express from "express";
+import { Produtores, Administradores, Empresas } from '../database/dbIndex';
+import type { Produtor, Administrador, Empresa } from '../types/routesTypes';
+import { comparePassword } from '../utils/passwordParser'
 
-const router = express.Router();
+const loginRoutes = [
+    {
+        endpoint: "/api/login",
+        method: "get",
 
-interface LoginRequest {
-  email: string;
-  senha: string;
-}
+        run: async (req: Express.Request, res: Express.Response) => {
 
-router.post('/', async (req: Request<{}, {}, LoginRequest>, res: Response) => {
-  const { email, senha } = req.body;
+            const { email, senhaText } = req.body;
 
-  if (!email || !senha) {
-    return res.status(400).json({ error: 'Preencha todos os campos.' });
-  }
+            // Validação de campos obrigatórios
+            if (!email || !senhaText) {
+                return res.status(400).send("Email e senha são obrigatórios");
+            }
+ 
+            const produtorExistente = Produtores.get((produtor: Produtor) => produtor.email === email);
+            const adminExistente = Administradores.get((admin: Administrador) => admin.email === email);
+            const empresaExistente = Empresas.get((empresa: Empresa) => empresa.emailEmpresa === email);
 
-  try {
-    const resultados = await db.find('usuarios', { email });
-    if (!resultados || resultados.length === 0) {
-      return res.status(404).json({ error: 'Usuário não encontrado.' });
+            
+            if (!produtorExistente && !adminExistente && !empresaExistente) {
+                return res.status(404).send("Usuário não existe");
+            }
+            
+            let senhaHash: string = '';
+            let userType: string = '';
+            let userData: any = null;
+
+            if (produtorExistente) {
+                senhaHash = produtorExistente.senhaHash;
+                userType = "produtor";
+                userData = produtorExistente;
+            } else if (adminExistente) {
+                senhaHash = adminExistente.senhaHash;
+                userType = "admin";
+                userData = adminExistente;
+            } else if (empresaExistente) {
+                senhaHash = empresaExistente.senhaHash;
+                userType = "empresa";
+                userData = empresaExistente;
+            }
+
+            // Validação adicional do hash
+            if (!senhaHash) {
+                return res.status(500).send("Erro ao recuperar senha do usuário");
+            }
+
+            try {
+                const senhaCorreta = await comparePassword(senhaText, senhaHash);
+                
+                if (senhaCorreta) {
+                    return res.status(200).json({
+                        user: userData,
+                        type: userType
+                    });
+                } else {
+                    return res.status(401).send("Senha incorreta");
+                }
+            } catch (error) {
+                console.error('Erro ao comparar senha:', error);
+                return res.status(500).send("Erro ao processar login");
+            }
+
+        }
     }
+]
 
-    const user = resultados[0];
-    const senhaValida = await bcrypt.compare(senha, user.senha);
-
-    if (!senhaValida) {
-      return res.status(401).json({ error: 'Senha incorreta.' });
-    }
-
-    return res.status(200).json({
-      message: 'Login realizado com sucesso!',
-      tipo: user.tipo,  
-      user: { ...user, senha: undefined } 
-    });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: 'Erro ao realizar login.' });
-  }
-});
-
-export default router;
+export default loginRoutes;

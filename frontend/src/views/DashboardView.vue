@@ -69,7 +69,7 @@
                 <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
               </select>
 
-              <InputField v-model="creditForm.amount" placeholder="Quantidade de créditos" />
+              <InputField v-model="creditForm.amount" type="number" placeholder="Quantidade de créditos" />
 
               <label class="label">Data</label>
               <input type="date" v-model="creditForm.date" class="input-date" />

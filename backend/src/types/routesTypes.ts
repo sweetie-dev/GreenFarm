@@ -3,7 +3,7 @@ export interface Empresa {
     cnpj: string;
     nomeRepresentante: string;
     emailEmpresa: string;
-    senhaHash: number;
+    senha: number;
 }
 
 export interface Produtor {
