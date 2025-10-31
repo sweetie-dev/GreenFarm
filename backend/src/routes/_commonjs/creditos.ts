@@ -1,104 +1,157 @@
-import express, { Request, Response } from 'express';
-import db from '../../database/dbIndex.js';
+import type Express from 'express';
+import { RegistrosCredito, Produtores, Projetos } from '../../database/dbIndex';
+import type { RegistroCredito, Produtor, Projeto } from '../../types/routesTypes';
 
-const router = express.Router();
+const creditosRoutes = [
+    {
+        endpoint: "/api/creditos/registrar",
+        method: "post",
+        run: async (req: Express.Request, res: Express.Response) => {
+            const { produtorId, projetoId, quantidade, data, observacao } = req.body;
 
-interface Credito {
-  id: number;
-  produtor_id: number;
-  quantidade: number;
-  origem: string;
-  data: string; 
-  criado_em: string;
-}
+            if (!produtorId || !quantidade || quantidade <= 0) {
+                return res.status(400).json({ 
+                    erro: "Produtor ID e quantidade válida são obrigatórios" 
+                });
+            }
 
-function validarRegistro(body: any): string[] {
-  const errors: string[] = [];
-  if (body.produtor_id == null || !Number.isInteger(body.produtor_id)) {
-    errors.push('produtor_id é obrigatório e deve ser inteiro.');
-  }
-  const qtd = Number(body.quantidade);
-  if (!body.quantidade || isNaN(qtd) || qtd <= 0) {
-    errors.push('quantidade é obrigatória e deve ser número > 0.');
-  }
-  if (!body.origem || typeof body.origem !== 'string') {
-    errors.push('origem é obrigatória.');
-  }
-  if (!body.data) {
-    errors.push('data é obrigatória (YYYY-MM-DD).');
-  } else {
-    const d = new Date(body.data);
-    if (isNaN(d.getTime())) errors.push('data inválida. Use YYYY-MM-DD.');
-  }
-  return errors;
-}
+            const produtor = Produtores.get((p: Produtor) => p.email === produtorId || p.cpfOuCnpj === produtorId);
+            if (!produtor) {
+                return res.status(404).json({ erro: "Produtor não encontrado" });
+            }
 
+            // Verificar projeto se informado
+            if (projetoId) {
+                const projeto = Projetos.get((p: Projeto) => p.id === projetoId);
+                if (!projeto) {
+                    return res.status(404).json({ erro: "Projeto não encontrado" });
+                }
+            }
 
-router.post('/registrar', (req: Request, res: Response) => {
-  try {
-    const body = req.body;
-    const errors = validarRegistro(body);
-    if (errors.length) return res.status(400).json({ ok: false, errors });
+            const novoRegistro: RegistroCredito = {
+                id: Date.now().toString(),
+                produtorId: produtorId,
+                projetoId: projetoId || undefined,
+                quantidade: Number(quantidade),
+                data: data || new Date().toISOString().split('T')[0],
+                observacao: observacao || '',
+                status: 'pendente',
+                criadoEm: new Date().toISOString()
+            };
 
-    const creditos: Credito[] = db.get('creditos') || [];
+            RegistrosCredito.create(novoRegistro);
 
-    
-    const newId = creditos.length ? Math.max(...creditos.map(c => c.id)) + 1 : 1;
+            return res.status(201).json({ 
+                sucesso: true, 
+                registro: novoRegistro 
+            });
+        }
+    },
+    {
+        endpoint: "/api/creditos/pendentes",
+        method: "get",
+        run: async (_req: Express.Request, res: Express.Response) => {
+            const pendentes = RegistrosCredito.getMany((r: RegistroCredito) => r.status === 'pendente');
 
-    const novoCredito: Credito = {
-      id: newId,
-      produtor_id: body.produtor_id,
-      quantidade: body.quantidade,
-      origem: body.origem,
-      data: body.data,
-      criado_em: new Date().toISOString(),
-    };
+            return res.status(200).json({ 
+                sucesso: true, 
+                registros: pendentes 
+            });
+        }
+    },
+    {
+        endpoint: "/api/creditos/aprovar/:id",
+        method: "post",
+        run: async (req: Express.Request, res: Express.Response) => {
+            const { id } = req.params;
 
-    creditos.push(novoCredito);
-    db.set('creditos', creditos);
+            const registro = RegistrosCredito.get((r: RegistroCredito) => r.id === id);
+            if (!registro) {
+                return res.status(404).json({ erro: "Registro não encontrado" });
+            }
 
-    return res.status(201).json({ ok: true, credit: novoCredito });
-  } catch (err) {
-    console.error('Erro registrar crédito:', err);
-    return res.status(500).json({ ok: false, error: 'Erro interno do servidor' });
-  }
-});
+            if (registro.status !== 'pendente') {
+                return res.status(400).json({ erro: "Registro já foi processado" });
+            }
 
+            // Atualizar status do registro
+            RegistrosCredito.update(
+                (r: RegistroCredito) => r.id === id,
+                (r: RegistroCredito) => {
+                    r.status = 'aprovado';
+                    return r;
+                }
+            );
 
-router.get('/', (req: Request, res: Response) => {
-  try {
-    const page = Math.max(1, parseInt(req.query.page as string || '1'));
-    const limit = Math.min(100, parseInt(req.query.limit as string || '20'));
-    const offset = (page - 1) * limit;
+            // Atualizar créditos do produtor
+            const produtor = Produtores.get((p: Produtor) => p.email === registro.produtorId || p.cpfOuCnpj === registro.produtorId);
+            if (produtor) {
+                Produtores.update(
+                    (p: Produtor) => p.email === registro.produtorId || p.cpfOuCnpj === registro.produtorId,
+                    (p: Produtor) => {
+                        p.creditos = (p.creditos || 0) + registro.quantidade;
+                        return p;
+                    }
+                );
+            }
 
-    const creditos: Credito[] = db.get('creditos') || [];
+            // Atualizar objeto local para retornar
+            registro.status = 'aprovado';
 
+            return res.status(200).json({ 
+                sucesso: true, 
+                registro: registro 
+            });
+        }
+    },
+    {
+        endpoint: "/api/creditos/rejeitar/:id",
+        method: "post",
+        run: async (req: Express.Request, res: Express.Response) => {
+            const { id } = req.params;
 
-    const sorted = [...creditos].sort((a, b) => b.criado_em.localeCompare(a.criado_em));
-    const data = sorted.slice(offset, offset + limit);
+            const registro = RegistrosCredito.get((r: RegistroCredito) => r.id === id);
+            if (!registro) {
+                return res.status(404).json({ erro: "Registro não encontrado" });
+            }
 
-    return res.json({ ok: true, data, page, limit });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ ok: false, error: 'Erro interno' });
-  }
-});
+            if (registro.status !== 'pendente') {
+                return res.status(400).json({ erro: "Registro já foi processado" });
+            }
 
-router.get('/:id', (req: Request, res: Response) => {
-  try {
-    const id = parseInt(req.params.id);
-    if (!id) return res.status(400).json({ ok: false, error: 'id inválido' });
+            // Atualizar status do registro
+            RegistrosCredito.update(
+                (r: RegistroCredito) => r.id === id,
+                (r: RegistroCredito) => {
+                    r.status = 'rejeitado';
+                    return r;
+                }
+            );
 
-    const creditos: Credito[] = db.get('creditos') || [];
-    const credito = creditos.find(c => c.id === id);
+            // Atualizar objeto local para retornar
+            registro.status = 'rejeitado';
 
-    if (!credito) return res.status(404).json({ ok: false, error: 'Crédito não encontrado' });
+            return res.status(200).json({ 
+                sucesso: true, 
+                registro: registro 
+            });
+        }
+    },
+    {
+        endpoint: "/api/creditos/:produtorId",
+        method: "get",
+        run: async (req: Express.Request, res: Express.Response) => {
+            const { produtorId } = req.params;
 
-    return res.json({ ok: true, data: credito });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ ok: false, error: 'Erro interno' });
-  }
-});
+            const registros = RegistrosCredito.getMany((r: RegistroCredito) => r.produtorId === produtorId);
 
-export default router;
+            return res.status(200).json({ 
+                sucesso: true, 
+                registros: registros 
+            });
+        }
+    }
+];
+
+export default creditosRoutes;
+

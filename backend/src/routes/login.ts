@@ -6,7 +6,7 @@ import { comparePassword } from '../utils/passwordParser'
 const loginRoutes = [
     {
         endpoint: "/api/login",
-        method: "get",
+        method: "post",
 
         run: async (req: Express.Request, res: Express.Response) => {
 
@@ -14,7 +14,7 @@ const loginRoutes = [
 
             // Validação de campos obrigatórios
             if (!email || !senhaText) {
-                return res.status(400).send("Email e senha são obrigatórios");
+                return res.status(400).json({ erro: "Email e senha são obrigatórios" });
             }
  
             const produtorExistente = Produtores.get((produtor: Produtor) => produtor.email === email);
@@ -23,7 +23,7 @@ const loginRoutes = [
 
             
             if (!produtorExistente && !adminExistente && !empresaExistente) {
-                return res.status(404).send("Usuário não existe");
+                return res.status(404).json({ erro: "Usuário não encontrado" });
             }
             
             let senhaHash: string = '';
@@ -33,20 +33,23 @@ const loginRoutes = [
             if (produtorExistente) {
                 senhaHash = produtorExistente.senhaHash;
                 userType = "produtor";
-                userData = produtorExistente;
+                userData = { ...produtorExistente };
+                delete userData.senhaHash;
             } else if (adminExistente) {
                 senhaHash = adminExistente.senhaHash;
                 userType = "admin";
-                userData = adminExistente;
+                userData = { ...adminExistente };
+                delete userData.senhaHash;
             } else if (empresaExistente) {
                 senhaHash = empresaExistente.senhaHash;
                 userType = "empresa";
-                userData = empresaExistente;
+                userData = { ...empresaExistente };
+                delete userData.senhaHash;
             }
 
             // Validação adicional do hash
             if (!senhaHash) {
-                return res.status(500).send("Erro ao recuperar senha do usuário");
+                return res.status(500).json({ erro: "Erro ao recuperar senha do usuário" });
             }
 
             try {
@@ -54,15 +57,16 @@ const loginRoutes = [
                 
                 if (senhaCorreta) {
                     return res.status(200).json({
-                        user: userData,
-                        type: userType
+                        sucesso: true,
+                        usuario: userData,
+                        tipo: userType
                     });
                 } else {
-                    return res.status(401).send("Senha incorreta");
+                    return res.status(401).json({ erro: "Senha incorreta" });
                 }
             } catch (error) {
                 console.error('Erro ao comparar senha:', error);
-                return res.status(500).send("Erro ao processar login");
+                return res.status(500).json({ erro: "Erro ao processar login" });
             }
 
         }

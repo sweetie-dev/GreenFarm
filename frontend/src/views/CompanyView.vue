@@ -123,12 +123,17 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { produtores as produtoresApi, transacoes as transacoesApi, dashboard } from '../services/api';
 
-// Estado da empresa (em produção viria da API/Vuex)
-const wallet = ref(1000);
-const lastPurchase = ref('2025-10-30');
-const totalInvested = ref(5000);
+const router = useRouter();
+
+// Estado da empresa
+const empresaId = ref('');
+const wallet = ref(0);
+const lastPurchase = ref('—');
+const totalInvested = ref(0);
 
 // Filtros
 const search = ref('');
@@ -141,49 +146,70 @@ const cartTotalPrice = computed(() =>
   cart.value.reduce((sum, item) => sum + (item.amount * item.price), 0).toFixed(2)
 );
 
-// Créditos disponíveis (mock - viria da API)
-const credits = ref([
-  { 
-    id: 1, 
-    producer: 'Fazenda São João',
-    location: 'Mato Grosso, BR',
-    amount: 100,
-    price: 45.00,
-    type: 'forest',
-    typeLabel: 'Reflorestamento',
-    description: 'Projeto de reflorestamento com espécies nativas da Amazônia',
-    buyAmount: 0
-  },
-  { 
-    id: 2, 
-    producer: 'Cooperativa Verde Vida',
-    location: 'São Paulo, BR',
-    amount: 50,
-    price: 35.00,
-    type: 'agriculture',
-    typeLabel: 'Agricultura Sustentável',
-    description: 'Cultivo orgânico e práticas regenerativas',
-    buyAmount: 0
-  },
-  { 
-    id: 3, 
-    producer: 'Solar Energy Co.',
-    location: 'Ceará, BR',
-    amount: 75,
-    price: 40.00,
-    type: 'energy',
-    typeLabel: 'Energia Solar',
-    description: 'Geração de energia solar em comunidades rurais',
-    buyAmount: 0
-  },
-]);
+// Créditos disponíveis
+const credits = ref([]);
 
 // Histórico de compras
-const purchases = ref([
-  { id: 1, credits: 50, total: '2.250,00', date: '25/10/2025' },
-  { id: 2, credits: 30, total: '1.350,00', date: '20/10/2025' },
-  { id: 3, credits: 25, total: '1.125,00', date: '15/10/2025' },
-]);
+const purchases = ref([]);
+
+// Lifecycle
+onMounted(async () => {
+  const usuario = JSON.parse(localStorage.getItem('usuario') || '{}');
+  const tipo = localStorage.getItem('tipoUsuario');
+  
+  if (!usuario || tipo !== 'empresa') {
+    router.push('/login');
+    return;
+  }
+
+  empresaId.value = usuario.emailEmpresa || usuario.cnpj;
+  
+  await carregarDados();
+});
+
+// Methods
+async function carregarDados() {
+  try {
+    // Carregar saldo
+    const saldoRes = await dashboard.obterSaldo(empresaId.value);
+    wallet.value = saldoRes.data.saldo || 0;
+
+    // Carregar produtores disponíveis
+    const produtoresRes = await produtoresApi.listar();
+    credits.value = produtoresRes.data.produtores.map(p => ({
+      id: p.cpfOuCnpj,
+      producer: p.nomeCompleto,
+      location: p.endereco,
+      amount: p.creditos || 0,
+      price: 45.00, // Preço fixo ou vindo do backend
+      type: 'agriculture',
+      typeLabel: p.atividade,
+      description: `Créditos disponíveis do produtor ${p.nomeCompleto}`,
+      buyAmount: 0
+    }));
+
+    // Carregar histórico de transações
+    const transRes = await transacoesApi.listar(empresaId.value);
+    const transacoes = transRes.data.transacoes || [];
+    
+    purchases.value = transacoes.map(t => ({
+      id: t.id,
+      credits: t.quantidade,
+      total: t.valor.toFixed(2),
+      date: new Date(t.data).toLocaleDateString('pt-BR')
+    }));
+
+    // Calcular estatísticas
+    if (transacoes.length > 0) {
+      totalInvested.value = transacoes.reduce((sum, t) => sum + t.valor, 0);
+      lastPurchase.value = new Date(transacoes[0].data).toLocaleDateString('pt-BR');
+    }
+
+  } catch (error) {
+    console.error('Erro ao carregar dados:', error);
+    alert('Erro ao carregar dados. Tente novamente.');
+  }
+}
 
 // Computed
 const filteredCredits = computed(() => {
@@ -248,28 +274,32 @@ function removeFromCart(item) {
   cart.value.splice(idx, 1);
 }
 
-function checkout() {
+async function checkout() {
   if (!cart.value.length) return;
   
-  const total = cartTotalPrice.value;
-  const creditAmount = cartTotal.value;
-  
-  // Registrar compra
-  purchases.value.unshift({
-    id: Date.now(),
-    credits: creditAmount,
-    total,
-    date: new Date().toLocaleDateString('pt-BR')
-  });
-  
-  // Atualizar carteira
-  wallet.value += creditAmount;
-  lastPurchase.value = new Date().toISOString().split('T')[0];
-  totalInvested.value += Number(total);
-  
-  // Limpar carrinho
-  cart.value = [];
-  alert(`Compra finalizada! ${creditAmount} ZEA adquiridos.`);
+  try {
+    // Criar transação para cada item do carrinho
+    for (const item of cart.value) {
+      await transacoesApi.comprar({
+        empresaId: empresaId.value,
+        produtorId: item.id,
+        quantidade: item.amount,
+        valor: item.amount * item.price
+      });
+    }
+
+    alert(`Compra finalizada! ${cartTotal.value} ZEA adquiridos.`);
+    
+    // Limpar carrinho
+    cart.value = [];
+    
+    // Recarregar dados
+    await carregarDados();
+    
+  } catch (error) {
+    console.error('Erro na compra:', error);
+    alert('Erro ao finalizar compra. Tente novamente.');
+  }
 }
 </script>
 

@@ -1,42 +1,52 @@
-import express, { Request, Response } from 'express';
-import db from '../../../database/dbIndex.js';
+import type Express from 'express';
+import { Produtores, Empresas, Administradores } from '../../../database/dbIndex';
+import type { Produtor, Empresa, Administrador } from '../../../types/routesTypes';
 
-const router = express.Router();
+const usuarioRoutes = [
+  {
+    endpoint: "/api/dashboard/usuario/:id",
+    method: "get",
+    run: async (req: Express.Request, res: Express.Response) => {
+      const { id } = req.params;
 
-interface Transacao {
-  id: string;
-  tipo: string;
-  descricao: string;
-  valor: number;
-  data: string;
-}
+      try {
+        // Tentar encontrar como produtor
+        let usuario: any = Produtores.get((p: Produtor) => p.email === id || p.cpfOuCnpj === id);
+        let tipo = 'produtor';
+        
+        // Se não encontrar, tentar como empresa
+        if (!usuario) {
+          usuario = Empresas.get((e: Empresa) => e.emailEmpresa === id || e.cnpj === id);
+          tipo = 'empresa';
+        }
 
-interface Usuario {
-  id: string;
-  nome: string;
-  email: string;
-  saldo: number;
-  transacoes?: Transacao[];
-}
+        // Se não encontrar, tentar como admin
+        if (!usuario) {
+          usuario = Administradores.get((a: Administrador) => a.email === id);
+          tipo = 'admin';
+        }
 
-router.get('/:id', (req: Request, res: Response) => {
-  const { id } = req.params;
+        if (!usuario) {
+          return res.status(404).json({ erro: 'Usuário não encontrado' });
+        }
 
-  try {
-    const user = db.get(`usuarios.${id}`) as Usuario | undefined;
+        // Remover senha do retorno
+        const usuarioSemSenha = { ...usuario };
+        delete usuarioSemSenha.senhaHash;
 
-    if (!user) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
+        return res.json({
+          sucesso: true,
+          usuario: usuarioSemSenha,
+          tipo: tipo
+        });
+
+      } catch (error) {
+        console.error(error);
+        return res.status(500).json({ erro: 'Erro ao buscar usuário' });
+      }
     }
-
-    const transacoes = Array.isArray(user.transacoes) ? user.transacoes : [];
-    const ultimas = transacoes.slice(-5).reverse();
-    return res.json(ultimas);
-
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: 'Erro ao buscar usuário' });
   }
-});
+];
 
-export default router;
+export default usuarioRoutes;
+

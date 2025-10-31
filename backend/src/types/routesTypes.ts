@@ -3,7 +3,9 @@ export interface Empresa {
     cnpj: string;
     nomeRepresentante: string;
     emailEmpresa: string;
-    senha: number;
+    senhaHash: string;
+    creditos: number;
+    transacoes: string[];
 }
 
 export interface Produtor {
@@ -12,12 +14,47 @@ export interface Produtor {
     endereco: string;
     atividade: string;
     email: string;
-    senha: string;
+    senhaHash: string;
+    creditos: number;
+    empresas: string[];
+    projetos: string[];
 }
 
 export interface Administrador {
     nome: string;
     email: string;
-    senha: string;
+    senhaHash: string;
     codigoVerificacao: string;
+}
+
+export interface Projeto {
+    id: string;
+    produtorId: string;
+    nome: string;
+    descricao: string;
+    progresso: number;
+    creditosEsperados: number;
+    finalizado: boolean;
+    criadoEm: string;
+}
+
+export interface Transacao {
+    id: string;
+    empresaId: string;
+    produtorId: string;
+    quantidade: number;
+    valor: number;
+    data: string;
+    tipo: 'compra' | 'venda';
+}
+
+export interface RegistroCredito {
+    id: string;
+    produtorId: string;
+    projetoId?: string;
+    quantidade: number;
+    data: string;
+    observacao?: string;
+    status: 'pendente' | 'aprovado' | 'rejeitado';
+    criadoEm: string;
 }

@@ -114,7 +114,8 @@ const registroRoutes = [
                 Administradores.create({
                     "nome": nome,
                     "email": email,
-                    "senhaHash": senhaHash
+                    "senhaHash": senhaHash,
+                    "codigoVerificacao": codigoVerificacao
                 });
                 return res.status(201).send("Administrador criado com sucesso.")
             }

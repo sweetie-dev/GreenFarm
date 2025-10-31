@@ -69,57 +69,126 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { creditos } from '../services/api';
 import CreditItem from '../components/CreditItem.vue';
 
-// dados de exemplo — em app real viria da API
-const pending = ref([
-  { id: 1, producer: 'João Silva', project: 'Reflorestamento Amazônico', amount: 50, date: '2025-10-12', note: 'Mudas certificadas' },
-  { id: 2, producer: 'Maria Oliveira', project: 'Horta Comunitária SP', amount: 20, date: '2025-10-15', note: '' },
-  { id: 3, producer: 'Cooperativa Verde', project: '', amount: 150, date: '2025-10-20', note: 'Créditos por sequestro' },
-]);
+const router = useRouter();
 
+// Estado
+const pending = ref([]);
 const approved = ref([]);
-const activities = ref([ { title: 'Admin iniciado', time: 'agora' } ]);
-
+const activities = ref([]);
 const search = ref('');
+
+// Lifecycle
+onMounted(async () => {
+  const tipo = localStorage.getItem('tipoUsuario');
+  
+  if (tipo !== 'admin') {
+    router.push('/login');
+    return;
+  }
+
+  await carregarCreditos();
+});
+
+// Methods
+async function carregarCreditos() {
+  try {
+    const response = await creditos.listarPendentes();
+    pending.value = response.data.registros.map(r => ({
+      id: r.id,
+      producer: r.produtorId,
+      project: r.projetoId || '',
+      amount: r.quantidade,
+      date: new Date(r.data).toLocaleDateString('pt-BR'),
+      note: r.observacao || ''
+    }));
+  } catch (error) {
+    console.error('Erro ao carregar créditos:', error);
+    alert('Erro ao carregar dados. Tente novamente.');
+  }
+}
 
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase();
   if (!q) return pending.value;
-  return pending.value.filter(c => (c.producer || '').toLowerCase().includes(q) || (c.project || '').toLowerCase().includes(q));
+  return pending.value.filter(c => 
+    (c.producer || '').toLowerCase().includes(q) || 
+    (c.project || '').toLowerCase().includes(q)
+  );
 });
 
-const pendingTotal = computed(() => pending.value.reduce((s, c) => s + Number(c.amount || 0), 0));
-const approvedTotal = computed(() => approved.value.reduce((s, c) => s + Number(c.amount || 0), 0));
+const pendingTotal = computed(() => 
+  pending.value.reduce((s, c) => s + Number(c.amount || 0), 0)
+);
 
-function approveCredit(credit) {
-  // remover de pending e adicionar a approved
-  const idx = pending.value.findIndex(p => p.id === credit.id);
-  if (idx === -1) return;
-  const item = pending.value.splice(idx, 1)[0];
-  approved.value.unshift({ ...item, approvedAt: new Date().toISOString() });
-  activities.value.unshift({ title: `Aprovado ${item.amount} ZEA por ${item.producer}`, time: 'agora' });
+const approvedTotal = computed(() => 
+  approved.value.reduce((s, c) => s + Number(c.amount || 0), 0)
+);
+
+async function approveCredit(credit) {
+  try {
+    await creditos.aprovar(credit.id);
+    
+    const idx = pending.value.findIndex(p => p.id === credit.id);
+    if (idx !== -1) {
+      const item = pending.value.splice(idx, 1)[0];
+      approved.value.unshift({ ...item, approvedAt: new Date().toISOString() });
+      activities.value.unshift({ 
+        title: `Aprovado ${item.amount} ZEA por ${item.producer}`, 
+        time: 'agora' 
+      });
+    }
+  } catch (error) {
+    console.error('Erro ao aprovar:', error);
+    alert('Erro ao aprovar crédito. Tente novamente.');
+  }
 }
 
-function rejectCredit(credit) {
-  // pedir confirmação antes de rejeitar — permite ao admin optar por NÃO aprovar
-  if (!confirm(`Deseja realmente rejeitar o registro de ${credit.producer || 'este produtor'}?`)) return;
-  const idx = pending.value.findIndex(p => p.id === credit.id);
-  if (idx === -1) return;
-  const item = pending.value.splice(idx, 1)[0];
-  activities.value.unshift({ title: `Rejeitado registro de ${item.producer} (${item.amount} ZEA)`, time: 'agora' });
+async function rejectCredit(credit) {
+  if (!confirm(`Deseja realmente rejeitar o registro de ${credit.producer}?`)) return;
+  
+  try {
+    await creditos.rejeitar(credit.id);
+    
+    const idx = pending.value.findIndex(p => p.id === credit.id);
+    if (idx !== -1) {
+      const item = pending.value.splice(idx, 1)[0];
+      activities.value.unshift({ 
+        title: `Rejeitado registro de ${item.producer} (${item.amount} ZEA)`, 
+        time: 'agora' 
+      });
+    }
+  } catch (error) {
+    console.error('Erro ao rejeitar:', error);
+    alert('Erro ao rejeitar crédito. Tente novamente.');
+  }
 }
 
-function bulkApprove() {
+async function bulkApprove() {
   if (!pending.value.length) return alert('Nenhum crédito pendente');
-  // mover todos
-  const items = pending.value.splice(0, pending.value.length);
-  items.forEach(i => approved.value.unshift({ ...i, approvedAt: new Date().toISOString() }));
-  activities.value.unshift({ title: `Aprovados ${items.length} registros`, time: 'agora' });
+  
+  try {
+    // Aprovar todos
+    for (const credit of pending.value) {
+      await creditos.aprovar(credit.id);
+    }
+    
+    const items = pending.value.splice(0, pending.value.length);
+    items.forEach(i => approved.value.unshift({ ...i, approvedAt: new Date().toISOString() }));
+    activities.value.unshift({ title: `Aprovados ${items.length} registros`, time: 'agora' });
+  } catch (error) {
+    console.error('Erro ao aprovar em lote:', error);
+    alert('Erro ao aprovar créditos. Tente novamente.');
+  }
 }
 
-function clearFilters() { search.value = ''; }
+function clearFilters() { 
+  search.value = ''; 
+}
 </script>
 
 <style scoped>
