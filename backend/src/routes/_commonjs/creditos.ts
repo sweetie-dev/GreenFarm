@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import db from '../database/dbIndex.js';
+import db from '../../database/dbIndex.js';
 
 const router = express.Router();
 
