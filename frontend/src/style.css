@@ -4,11 +4,14 @@ body {
   margin: 0;
   padding: 0;
   color: #177300;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
 }
+
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 .logo {
   display: block;
   margin: 0 auto 1rem auto;

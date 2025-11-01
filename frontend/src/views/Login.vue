@@ -1,8 +1,8 @@
 <template>
   <div class="login-wrapper">
-    <div class="container py-4">
+    <div class="container-fluid px-3 py-4">
       <div class="row justify-content-center">
-        <div class="col-12 col-sm-10 col-md-6 col-lg-4">
+        <div class="col-12 col-sm-11 col-md-11 col-lg-10 col-xl-9 col-xxl-8">
           <div class="card shadow border-0 rounded-3">
             <div class="card-body p-4">
               <div class="text-center mb-3">
@@ -116,10 +116,17 @@ async function login() {
 
 <style scoped>
 .login-wrapper {
-  min-height: 100vh;
+  min-height: calc(100vh - 120px);
   display: flex;
   align-items: center;
+  justify-content: center;
   background-color: #f8f9fa;
+  padding: 2rem 0;
+}
+
+.card {
+  min-width: 320px;
+  max-width: 100%;
 }
 
 .form-control:focus {
@@ -134,6 +141,7 @@ async function login() {
 @media (max-height: 700px) {
   .login-wrapper {
     align-items: flex-start;
+    padding: 1rem 0;
   }
 }
 </style>

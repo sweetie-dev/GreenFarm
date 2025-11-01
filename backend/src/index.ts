@@ -8,10 +8,7 @@ const app: express.Application = express();
 const port: number = 3000;
 
 // CORS configurado
-app.use(cors({
-  origin: 'http://localhost:5173',
-  credentials: true
-}));
+app.use(cors({ credentials: true }));
 
 // Middleware para parsing de JSON
 app.use(express.json());
@@ -35,8 +32,8 @@ async function loadRoutesFromDirectory(dirPath: string) {
 
     if (!entry.isFile()) continue;
 
-    const ext = process.env.NODE_ENV === 'production' ? '.js' : '.ts';
-    if (!entry.name.endsWith(ext)) continue;
+    const ext = (process.env.npm_command === 'start' ? '.js' : '.ts');
+    if (!entry.name.endsWith(ext) || entry.name.endsWith('d.ts')) continue;
 
     let mod: any;
     try {

@@ -1,21 +1,15 @@
 <template>
-  <div
-    id="app"
-    class="min-h-screen bg-green-50 text-gray-800 flex flex-col justify-between"
-  >
-    <header
-      class="bg-green-700 text-white p-4 text-center font-bold text-xl shadow"
-    >
+  <div id="app" class="d-flex flex-column min-vh-100">
+    <header class="bg-success text-white p-4 text-center fw-bold fs-4">
       <img src="/GreenFarm.png" alt="Logo GreenFarm" class="logo" />
     </header>
 
-    <main class="flex-grow flex justify-center items-center p-6">
+    <main class="flex-grow-1">
       <router-view />
     </main>
-    <center>
-      <footer class="text-center text-sm p-4 text-gray-600 bg-green-100">
-        © 2025 GreenFarm. Todos os direitos reservados.
-      </footer>
-    </center>
+
+    <footer class="text-center small p-4 text-muted bg-light">
+      © 2025 GreenFarm. Todos os direitos reservados.
+    </footer>
   </div>
 </template>

@@ -1,13 +1,13 @@
 <template>
-  <div class="min-vh-100 d-flex align-items-center justify-content-center bg-light py-5">
-    <div class="container">
+  <div class="register-wrapper">
+    <div class="container-fluid px-3 py-4">
       <div class="row justify-content-center">
-        <div class="col-12 col-md-8 col-lg-7">
-          <div class="card shadow-lg border-0 rounded-4">
-            <div class="card-body p-4 p-md-5">
+        <div class="col-12 col-sm-11 col-md-11 col-lg-10 col-xl-9 col-xxl-8">
+          <div class="card shadow border-0 rounded-3">
+            <div class="card-body p-4">
               <div class="text-center mb-4">
-                <h2 class="fw-bold text-success mb-2">🌱 Cadastro GreenFarm</h2>
-                <p class="text-muted">Escolha o tipo de conta</p>
+                <h4 class="fw-bold text-success mb-2">🌱 Cadastro GreenFarm</h4>
+                <p class="text-muted small">Escolha o tipo de conta</p>
               </div>
 
               <!-- Seleção de tipo -->
@@ -26,42 +26,42 @@
                 </button>
               </div>
 
-              <div v-if="erro" class="alert alert-danger alert-dismissible fade show" role="alert">
+              <div v-if="erro" class="alert alert-danger alert-dismissible fade show py-2 small" role="alert">
                 {{ erro }}
-                <button type="button" class="btn-close" @click="erro = ''" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-sm" @click="erro = ''" aria-label="Close"></button>
               </div>
 
-              <div v-if="sucesso" class="alert alert-success alert-dismissible fade show" role="alert">
+              <div v-if="sucesso" class="alert alert-success alert-dismissible fade show py-2 small" role="alert">
                 {{ sucesso }}
-                <button type="button" class="btn-close" @click="sucesso = ''" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-sm" @click="sucesso = ''" aria-label="Close"></button>
               </div>
 
               <form @submit.prevent="register">
                 <!-- Formulário Produtor -->
                 <template v-if="tipo === 'Produtor'">
                   <div class="mb-3">
-                    <label class="form-label">Nome Completo</label>
+                    <label class="form-label small mb-1">Nome Completo</label>
                     <input type="text" class="form-control" v-model="dados.nome" required />
                   </div>
                   <div class="mb-3">
-                    <label class="form-label">CPF/CNPJ</label>
+                    <label class="form-label small mb-1">CPF/CNPJ</label>
                     <input type="text" class="form-control" v-model="dados.cpf" required />
                   </div>
                   <div class="mb-3">
-                    <label class="form-label">Localização</label>
+                    <label class="form-label small mb-1">Localização</label>
                     <input type="text" class="form-control" v-model="dados.localizacao" required />
                   </div>
                   <div class="mb-3">
-                    <label class="form-label">Atividade</label>
+                    <label class="form-label small mb-1">Atividade</label>
                     <input type="text" class="form-control" v-model="dados.atividade" 
                            placeholder="Ex: agricultura, reflorestamento..." required />
                   </div>
                   <div class="mb-3">
-                    <label class="form-label">E-mail</label>
+                    <label class="form-label small mb-1">E-mail</label>
                     <input type="email" class="form-control" v-model="dados.email" required />
                   </div>
                   <div class="mb-3">
-                    <label class="form-label">Senha</label>
+                    <label class="form-label small mb-1">Senha</label>
                     <input type="password" class="form-control" v-model="dados.senha" required />
                     <small class="form-text text-muted">Mínimo 8 caracteres, letra maiúscula e número</small>
                   </div>
@@ -70,23 +70,23 @@
                 <!-- Formulário Empresa -->
                 <template v-else-if="tipo === 'Empresa'">
                   <div class="mb-3">
-                    <label class="form-label">Nome da Empresa</label>
+                    <label class="form-label small mb-1">Nome da Empresa</label>
                     <input type="text" class="form-control" v-model="dados.nomeEmpresa" required />
                   </div>
                   <div class="mb-3">
-                    <label class="form-label">CNPJ</label>
+                    <label class="form-label small mb-1">CNPJ</label>
                     <input type="text" class="form-control" v-model="dados.cnpj" required />
                   </div>
                   <div class="mb-3">
-                    <label class="form-label">Representante Responsável</label>
+                    <label class="form-label small mb-1">Representante Responsável</label>
                     <input type="text" class="form-control" v-model="dados.nomeRepresentante" required />
                   </div>
                   <div class="mb-3">
-                    <label class="form-label">E-mail Corporativo</label>
+                    <label class="form-label small mb-1">E-mail Corporativo</label>
                     <input type="email" class="form-control" v-model="dados.email" required />
                   </div>
                   <div class="mb-3">
-                    <label class="form-label">Senha</label>
+                    <label class="form-label small mb-1">Senha</label>
                     <input type="password" class="form-control" v-model="dados.senha" required />
                     <small class="form-text text-muted">Mínimo 8 caracteres, letra maiúscula e número</small>
                   </div>
@@ -95,26 +95,26 @@
                 <!-- Formulário Administrador -->
                 <template v-else>
                   <div class="mb-3">
-                    <label class="form-label">Nome do Administrador</label>
+                    <label class="form-label small mb-1">Nome do Administrador</label>
                     <input type="text" class="form-control" v-model="dados.nome" required />
                   </div>
                   <div class="mb-3">
-                    <label class="form-label">E-mail</label>
+                    <label class="form-label small mb-1">E-mail</label>
                     <input type="email" class="form-control" v-model="dados.email" required />
                   </div>
                   <div class="mb-3">
-                    <label class="form-label">Senha</label>
+                    <label class="form-label small mb-1">Senha</label>
                     <input type="password" class="form-control" v-model="dados.senha" required />
                   </div>
                   <div class="mb-3">
-                    <label class="form-label">Código de Verificação</label>
+                    <label class="form-label small mb-1">Código de Verificação</label>
                     <input type="text" class="form-control" v-model="dados.codigoVerificacao" required />
                   </div>
                 </template>
 
                 <button 
                   type="submit" 
-                  class="btn btn-success btn-lg w-100 mb-3"
+                  class="btn btn-success w-100 mb-3"
                   :disabled="carregando"
                 >
                   <span v-if="carregando" class="spinner-border spinner-border-sm me-2"></span>
@@ -122,7 +122,7 @@
                 </button>
               </form>
 
-              <p class="text-center mb-0">
+              <p class="text-center mb-0 small">
                 Já tem conta?
                 <router-link to="/login" class="text-success fw-semibold text-decoration-none">
                   Entrar
@@ -185,6 +185,20 @@ async function register() {
 </script>
 
 <style scoped>
+.register-wrapper {
+  min-height: calc(100vh - 120px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8f9fa;
+  padding: 2rem 0;
+}
+
+.card {
+  min-width: 320px;
+  max-width: 100%;
+}
+
 .form-control:focus {
   border-color: #198754;
   box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
@@ -193,5 +207,16 @@ async function register() {
 .btn-group .btn {
   font-size: 0.9rem;
   padding: 0.6rem 1rem;
+}
+
+.btn-close-sm {
+  font-size: 0.75rem;
+}
+
+@media (max-height: 700px) {
+  .register-wrapper {
+    align-items: flex-start;
+    padding: 1rem 0;
+  }
 }
 </style>
